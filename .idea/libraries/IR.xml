@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="IR">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/IR.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

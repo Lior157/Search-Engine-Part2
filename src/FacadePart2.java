@@ -1,0 +1,2 @@
+public class FacadePart2 {
+}
