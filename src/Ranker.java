@@ -14,10 +14,10 @@ public class Ranker {
         semantics=false;
     }
 
-    public ArrayList<Map.Entry<Integer, Double>> rank(Path path, String query){
+    public ArrayList<Map.Entry<Integer, Double>> rank(Path path){
         reader=new InversedFileReader(path);
         if(semantics)
-            addSemanticWordsToQuery(query);
+            addSemanticWordsToQuery(null);
         Map<Integer,Double> bm=BM25();
         ArrayList<Map.Entry<Integer,Double>> sorted=new ArrayList<>();
         for(Map.Entry<Integer,Double> e:bm.entrySet()){
