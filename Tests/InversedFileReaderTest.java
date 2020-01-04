@@ -13,7 +13,7 @@ public class InversedFileReaderTest {
     private InversedFileReader fd ;
     @Before
     public void init() {
-        Path path = Paths.get("C:\\Users\\Aviel\\Test1\\dictionary\\withoutStemPostingFiles");
+        Path path = Paths.get("D:\\מסמכים\\לימודים\\שנה ג\\איחזור\\fbi10\\withoutStemPostingFiles");
         fd = new InversedFileReader( path );
     }
     @Test

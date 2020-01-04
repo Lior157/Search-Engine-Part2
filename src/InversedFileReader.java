@@ -1,5 +1,6 @@
 import javafx.util.Pair;
 
+import javax.print.Doc;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -12,22 +13,33 @@ import java.util.Map;
 public class InversedFileReader {
 
     private Path inversedFilesFolder;
+    private Double[] InformationAboutCorpus ;
+    private Map<Integer,Map<String,String>> DocID_toMetaData ;
+    private Map<Integer , Map<String,Integer>> DocID_toEntity ;
 
     public InversedFileReader(Path inversedFilesFolder) {
         this.inversedFilesFolder = inversedFilesFolder;
+        PREreadInformationAboutCorpus();
+        PRE_DocToMetaData() ;
+        PRE_DocToEntities();
     }
-    public Double[] readInformationAboutCorpus(){
-        Double[] result = new Double[2];
+    private void PREreadInformationAboutCorpus(){
+        InformationAboutCorpus = new Double[2];
         try {
             Path path = Paths.get(inversedFilesFolder + "//@InformationAboutCorpus.txt");
             String text = new String(Files.readAllBytes(path));
             String[] splitedLinesInput = text.split("\n");
-            result[0] = Double.parseDouble(splitedLinesInput[0]);
-            result[1] = Double.parseDouble(splitedLinesInput[1]);
+            InformationAboutCorpus[0] = Double.parseDouble(splitedLinesInput[0]);
+            InformationAboutCorpus[1] = Double.parseDouble(splitedLinesInput[1]);
         }catch (Exception e){}
-        return result ;
+    }
+    public Double[] readInformationAboutCorpus(){
+        return InformationAboutCorpus ;
     }
     public Pair<Pair<String,Integer>, Map<Integer,Integer>> readTermInformation(String term){
+        if (term == null || term.length()<1) {
+            return null;
+        }
         String fileName;
         char firstTermLetter = term.charAt(0) ;
         if(firstTermLetter >=65 && firstTermLetter<=90){
@@ -44,9 +56,9 @@ public class InversedFileReader {
             Path path = Paths.get(inversedFilesFolder + "//"+fileName);
             objReader = new BufferedReader(new FileReader(path.toString()));
             while ((strCurrentLine = objReader.readLine()) != null) {
-                if(strCurrentLine.startsWith(term)){
-                    System.out.println(term.length());
-                    System.out.println(strCurrentLine.indexOf("="));
+                if(strCurrentLine.startsWith(term)){ // to lower case , Im nit sure about it. may be ereased later
+                //    System.out.println(term.length());
+              //      System.out.println(strCurrentLine.indexOf("="));
                    if( term.length()-strCurrentLine.indexOf("=") == -1 ) {
                        String[] termElements = strCurrentLine.substring( term.length()+4).split("[ \\|\\}\\{\\,\\[\\]]+");
 
@@ -73,13 +85,8 @@ public class InversedFileReader {
         }
         return null;
     }
-
-    /**
-     *
-     * @param DocID
-     * @return Map of pairs <Entity , numberOfAppearence>
-     */
-    public  Map<String,Integer> DocToEntities(Integer DocID){
+    public void PRE_DocToEntities(){
+        DocID_toEntity = new HashMap<>();
         String fileName = "DocToEntities.txt";
         BufferedReader objReader = null;
         try {
@@ -87,7 +94,6 @@ public class InversedFileReader {
             Path path = Paths.get(inversedFilesFolder + "//"+fileName);
             objReader = new BufferedReader(new FileReader(path.toString()));
             while ((strCurrentLine = objReader.readLine()) != null) {
-                if(strCurrentLine.startsWith(DocID.toString()+"=")){
 
                     String[] termElements = strCurrentLine.substring( strCurrentLine.indexOf("=")+2 , strCurrentLine.length()-1 ).split(",");
 
@@ -95,13 +101,19 @@ public class InversedFileReader {
                     Map<String , Integer> doc_amount_map = new HashMap<>();
                     for(int i=0 ; i < termElements.length ; i++){
                         doc_amount = termElements[i].split("=");
-                        if(doc_amount[0].startsWith(" ")){ doc_amount[0] = doc_amount[0].substring(1);}
-                        if(doc_amount[0].endsWith(" ")){ doc_amount[0] = doc_amount[0].substring(0,doc_amount[0].length()-1);}
-                        doc_amount_map.put(doc_amount[0] ,Integer.parseInt(doc_amount[1]));
+                        if(doc_amount.length == 2) {
+                            if (doc_amount[0].startsWith(" ")) {
+                                doc_amount[0] = doc_amount[0].substring(1);
+                            }
+                            if (doc_amount[0].endsWith(" ")) {
+                                doc_amount[0] = doc_amount[0].substring(0, doc_amount[0].length() - 1);
+                            }
+                            doc_amount_map.put(doc_amount[0], Integer.parseInt(doc_amount[1]));
+                        }
                     }
-                    return doc_amount_map;
+                   DocID_toEntity.put(Integer.parseInt(strCurrentLine.substring(0, strCurrentLine.indexOf("="))) , doc_amount_map);
 
-                }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -113,11 +125,18 @@ public class InversedFileReader {
                 ex.printStackTrace();
             }
         }
-        return null;
+    }
+    /**
+     *
+     * @param DocID
+     * @return Map of pairs <Entity , numberOfAppearence>
+     */
+    public  Map<String,Integer> DocToEntities(Integer DocID){
+        return DocID_toEntity.get(DocID);
     }
 
-
-    public  Map<String,String> DocToMetaData(Integer DocID){
+    private void PRE_DocToMetaData(){
+        DocID_toMetaData = new HashMap<>();
         String fileName = "id_toDoc.txt";
         BufferedReader objReader = null;
         try {
@@ -125,7 +144,6 @@ public class InversedFileReader {
             Path path = Paths.get(inversedFilesFolder + "//"+fileName);
             objReader = new BufferedReader(new FileReader(path.toString()));
             while ((strCurrentLine = objReader.readLine()) != null) {
-                if(strCurrentLine.startsWith(DocID.toString()+"=")){
 
                     String[] termElements = strCurrentLine.substring( strCurrentLine.indexOf("=")+1 ).split("[|]");
                     Map<String , String> doc_amount_map = new HashMap<>();
@@ -135,8 +153,51 @@ public class InversedFileReader {
                     doc_amount_map.put("max_tf" ,termElements[4]);
                     doc_amount_map.put("qw" ,termElements[6]);
                     doc_amount_map.put("DocLen" ,termElements[8]);
-                    return doc_amount_map;
+                    DocID_toMetaData.put(Integer.parseInt(strCurrentLine.substring(0, strCurrentLine.indexOf("="))) , doc_amount_map) ;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (objReader != null)
+                    objReader.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
 
+    }
+    public  Map<String,String> DocToMetaData(Integer DocID){
+        return DocID_toMetaData.get(DocID);
+    }
+
+
+    public boolean searchIfExistTerm(String term){
+        if (term == null || term.length()<1) {
+            return false;
+        }
+        String fileName;
+        char firstTermLetter = term.charAt(0) ;
+        if(firstTermLetter >=65 && firstTermLetter<=90){
+            firstTermLetter = (char) (((int) firstTermLetter) + 22) ;
+            fileName = "@"+firstTermLetter+".txt";
+        }if(firstTermLetter >= 97 && firstTermLetter <= 122){
+            fileName = "@"+firstTermLetter+".txt";
+        }else{
+            fileName = "number&sign.txt";
+        }
+        BufferedReader objReader = null;
+        try {
+            String strCurrentLine;
+            Path path = Paths.get(inversedFilesFolder + "//"+fileName);
+            objReader = new BufferedReader(new FileReader(path.toString()));
+            while ((strCurrentLine = objReader.readLine()) != null) {
+                if(strCurrentLine.toLowerCase().startsWith(term.toLowerCase())){ // to lower case , Im nit sure about it. may be ereased later
+                    //    System.out.println(term.length());
+                    //      System.out.println(strCurrentLine.indexOf("="));
+                    if( term.length()-strCurrentLine.indexOf("=") == -1 ) {
+                        return true;
+                    }
                 }
             }
         } catch (IOException e) {
@@ -149,7 +210,7 @@ public class InversedFileReader {
                 ex.printStackTrace();
             }
         }
-        return null;
+        return false;
     }
 }
 
