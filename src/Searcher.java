@@ -1,6 +1,7 @@
 import javafx.util.Pair;
 import jdk.nashorn.internal.objects.NativeUint8Array;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,20 +11,22 @@ import java.util.Map;
 public class Searcher {
 
     Path posting;
+    Path Corpus;
     InversedFileReader reader;
 
-    public Searcher(Path posting) {
+    public Searcher(Path posting,Path corpus) {
         this.posting = posting;
         reader=new InversedFileReader(posting);
+        this.Corpus=corpus;
     }
 
-    public String[] analazeQuery(String Query){
-        Parse p = new Parse(null);
+    public ArrayList<Map.Entry<String, Double>> analazeQuery(String Query) throws IOException {
+        Parse p = new Parse(Corpus.toString());
         Map<String, Integer>  queryWords = p.parseIt(Query);
-        Ranker ranker=new Ranker(queryWords);
-        ArrayList<Map.Entry<Integer, Double>> docs=ranker.rank(posting);
-        String[] results = new String[2];
-        return results;
+        Ranker ranker=new Ranker(queryWords,Corpus.toString(),reader);
+        ranker.turnOnSemantics();
+        ArrayList<Map.Entry<String, Double>> docs=ranker.rank(posting);
+        return docs;
     }
 
     public ArrayList<Pair<String,Double>> getStrongestEntities(Integer docno){
