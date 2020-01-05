@@ -13,23 +13,39 @@ public class Searcher {
     Path posting;
     Path Corpus;
     InversedFileReader reader;
+    boolean semantics;
+    boolean stem;
 
     public Searcher(Path posting,Path corpus) {
         this.posting = posting;
         reader=new InversedFileReader(posting);
         this.Corpus=corpus;
+        semantics=false;
+        stem=false;
     }
 
-    public ArrayList<Map.Entry<String, Double>> analazeQuery(String Query) throws IOException {
+    public ArrayList<Map.Entry<String, Double>> analyzeQuery(String Query) throws IOException {
         Parse p = new Parse(Corpus.toString());
+        if(stem)
+            p.TurnOnStem();
+        else
+            p.TurnOffStem();
         Map<String, Integer>  queryWords = p.parseIt(Query);
         Ranker ranker=new Ranker(queryWords,Corpus.toString(),reader);
-        ranker.turnOnSemantics();
+        if(stem)
+            ranker.turnOnStem();
+        else
+            ranker.turnOffStem();
+        if(semantics)
+            ranker.turnOnSemantics();
+        else
+            ranker.turnOffSemantics();
         ArrayList<Map.Entry<String, Double>> docs=ranker.rank(posting);
         return docs;
     }
 
-    public ArrayList<Pair<String,Double>> getStrongestEntities(Integer docno){
+    public ArrayList<Pair<String,Double>> getStrongestEntities(String doc){
+        Integer docno=reader.DocIdFromDoc(doc);
         Map<String,Integer> entities=reader.DocToEntities(docno);
         ArrayList<Pair<String,Double>> entitiesSorted=new ArrayList<>();
         Map<String,String> terms=reader.DocToMetaData(docno);
@@ -56,5 +72,21 @@ public class Searcher {
             entitiesSorted.remove(5);
         }
         return entitiesSorted;
+    }
+
+    public void turnOnSemantics(){
+        semantics=true;
+    }
+
+    public void turnOffSemantics(){
+        semantics=false;
+    }
+
+    public void turnOnStem(){
+        stem=true;
+    }
+
+    public void turnOffStem(){
+        stem=false;
     }
 }

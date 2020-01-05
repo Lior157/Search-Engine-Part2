@@ -16,9 +16,11 @@ public class InversedFileReader {
     private Double[] InformationAboutCorpus ;
     private Map<Integer,Map<String,String>> DocID_toMetaData ;
     private Map<Integer , Map<String,Integer>> DocID_toEntity ;
+    private Map<String,Integer> DocID_toDocID;
 
     public InversedFileReader(Path inversedFilesFolder) {
         this.inversedFilesFolder = inversedFilesFolder;
+        DocID_toDocID=new HashMap<>();
         PREreadInformationAboutCorpus();
         PRE_DocToMetaData() ;
         PRE_DocToEntities();
@@ -153,7 +155,9 @@ public class InversedFileReader {
                     doc_amount_map.put("max_tf" ,termElements[4]);
                     doc_amount_map.put("qw" ,termElements[6]);
                     doc_amount_map.put("DocLen" ,termElements[8]);
-                    DocID_toMetaData.put(Integer.parseInt(strCurrentLine.substring(0, strCurrentLine.indexOf("="))) , doc_amount_map) ;
+                    Integer docId=Integer.parseInt(strCurrentLine.substring(0, strCurrentLine.indexOf("=")));
+                    DocID_toMetaData.put(docId , doc_amount_map) ;
+                    DocID_toDocID.put(termElements[2],docId);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -171,6 +175,9 @@ public class InversedFileReader {
         return DocID_toMetaData.get(DocID);
     }
 
+    public Integer DocIdFromDoc(String doc){
+        return DocID_toDocID.get(doc);
+    }
 
     public boolean searchIfExistTerm(String term){
         if (term == null || term.length()<1) {

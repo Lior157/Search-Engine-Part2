@@ -9,8 +9,10 @@ public class Ranker {
     InversedFileReader reader;
     Map<String,Integer> query;
     boolean semantics;
+    boolean stem;
     String corpus;
     Map<String,Pair<Pair<String,Integer>, Map<Integer,Integer>>> queryInfo;
+    Map<String,Integer> semanticWords;
     Double[] corpusData;
 
     public Ranker(Map<String,Integer> query,String corpus,InversedFileReader reader) {
@@ -19,6 +21,8 @@ public class Ranker {
         this.corpus=corpus;
         queryInfo=new HashMap<>();
         this.reader=reader;
+        semanticWords=new HashMap<>();
+        stem=false;
     }
 
     public ArrayList<Map.Entry<String, Double>> rank(Path path) throws IOException{
@@ -88,7 +92,11 @@ public class Ranker {
             Double docAmount=p.getValue().get(docno).doubleValue();
             idf=Math.log((corpusData[0]-p.getKey().getValue()+0.5)/(p.getKey().getValue()+0.5));
             rest=(docAmount*2.5)/(docAmount+1.5*(0.25+0.75*docLen/avgDocLen));
+            if(semanticWords.get(term)!=null)
+                rest=rest/2;
             sum=sum+rest*idf;
+            sum=sum*query.get(term);
+
         }
         return sum;
     }
@@ -112,15 +120,20 @@ public class Ranker {
                             add = add + " " + divided[0];
                             count++;
                         }
-                        if(count>0)
+                        if(count>2)
                             break;
                     }
                 }
             }
         }
         Parse parser=new Parse(corpus);
+        if(stem)
+            parser.TurnOnStem();
+        else
+            parser.TurnOffStem();
         Map<String,Integer> semanticParse=parser.parseIt(add);
         query.putAll(semanticParse);
+        semanticWords=semanticParse;
     }
 
     public void turnOnSemantics(){
@@ -131,4 +144,11 @@ public class Ranker {
         semantics=false;
     }
 
+    public void turnOnStem(){
+        stem=true;
+    }
+
+    public void turnOffStem(){
+        stem=false;
+    }
 }
