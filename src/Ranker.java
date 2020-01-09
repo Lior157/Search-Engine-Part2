@@ -5,17 +5,26 @@ import java.lang.reflect.Array;
 import java.nio.file.Path;
 import java.util.*;
 
+/**
+ * This class takes a query after processing and ranks the documents in the corpus by relevance
+ * and then return the most relevant documents
+ */
 public class Ranker {
-    InversedFileReader reader;
-    Map<String,Integer> query;
-    boolean semantics;
-    boolean stem;
+    InversedFileReader reader;  //An object to pull data from the posting files
+    Map<String,Integer> query; //The query after processing
+    boolean semantics; //checks if the query needs semantic ranking
+    boolean stem; //checks if the query has been stemmed
     String corpus;
     Map<String,Pair<Pair<String,Integer>, Map<Integer,Integer>>> queryInfo;
     Map<String,Integer> semanticWords;
     Double[] corpusData;
+    Map<String,Double> docsBeforeSort;
+    Double k;
+    Double b;
+    int semWordsSize;
 
-    public Ranker(Map<String,Integer> query,String corpus,InversedFileReader reader) {
+
+    public Ranker(Map<String,Integer> query,String corpus,InversedFileReader reader,Double k,Double b) {
         this.query=query;
         semantics=false;
         this.corpus=corpus;
@@ -23,13 +32,24 @@ public class Ranker {
         this.reader=reader;
         semanticWords=new HashMap<>();
         stem=false;
+        docsBeforeSort=new HashMap<>();
+        this.k=k;
+        this.b=b;
+        semWordsSize=0;
     }
 
-    public ArrayList<Map.Entry<String, Double>> rank(Path path) throws IOException{
+    /**
+     * This function takes a path to the stop words
+     * and then ranks the corpus by Okapi BM25 standards
+     * @return The most relevant documents to the query
+     * @throws IOException
+     */
+    public ArrayList<Map.Entry<String, Double>> rank() throws IOException{
         corpusData=reader.readInformationAboutCorpus();
         if(semantics)
             addSemanticWordsToQuery();
-        Map<String,Double> bm=BM25();
+        Map<String,Double> bm=PreBM25();
+        docsBeforeSort=bm;
         ArrayList<Map.Entry<String,Double>> sorted=new ArrayList<>();
         for(Map.Entry<String,Double> e:bm.entrySet()){
             sorted.add(e);
@@ -55,7 +75,13 @@ public class Ranker {
         return sorted;
     }
 
-    public Map<String,Double> BM25(){
+
+    /**
+     * Starts the preparation for the Okapi BM25 ranking formula by getting all the information needed from each document
+     * from the posting files,and then calculates the rank by another function
+     * @return The most relevant documents to the query
+     */
+    private Map<String,Double> PreBM25(){
         Map<Integer,Double> bm=new HashMap<>();
         bm=new HashMap<>();
         for (String term:query.keySet()) {
@@ -73,12 +99,18 @@ public class Ranker {
         HashMap<String,Double> docs=new HashMap<>();
         for(Integer docno:bm.keySet()){
             HashMap<String,String> docMeta=(HashMap)reader.DocToMetaData(docno);
-            docs.put(docMeta.get("DocId"),calculateBM(docno,Double.parseDouble(docMeta.get("DocLen"))));
+            docs.put(docMeta.get("DocId"),calculateBM(docno,Double.parseDouble(docMeta.get("DocLen")),docMeta.get("Title")));
         }
         return docs;
     }
 
-    public Double calculateBM(Integer docno,Double docLen){
+    /**
+     * This function calculates the Okapi BM25 formula
+     * @param docno The document number
+     * @param docLen The document length
+     * @return The rank of the document
+     */
+    private Double calculateBM(Integer docno,Double docLen,String title){
         Double idf=0.0;
         Double rest=0.0;
         Double sum=0.0;
@@ -91,17 +123,23 @@ public class Ranker {
                 continue;
             Double docAmount=p.getValue().get(docno).doubleValue();
             idf=Math.log((corpusData[0]-p.getKey().getValue()+0.5)/(p.getKey().getValue()+0.5));
-            rest=(docAmount*2.5)/(docAmount+1.5*(0.25+0.75*docLen/avgDocLen));
+            rest=(docAmount*(k+1))/(docAmount+k*(1-b+b*docLen/avgDocLen));
             if(semanticWords.get(term)!=null)
                 rest=rest/2;
             sum=sum+rest*idf;
             sum=sum*query.get(term);
-
+            if(title.contains(term))
+                sum+=10;
         }
         return sum;
     }
 
-    public void addSemanticWordsToQuery() throws IOException {
+
+    /**
+     * This function adds similar words to the query
+     * @throws IOException
+     */
+    private void addSemanticWordsToQuery() throws IOException {
         String add="";
         for(String term:query.keySet()) {
             String st;
@@ -134,6 +172,7 @@ public class Ranker {
         Map<String,Integer> semanticParse=parser.parseIt(add);
         query.putAll(semanticParse);
         semanticWords=semanticParse;
+        semWordsSize=query.size();
     }
 
     public void turnOnSemantics(){
@@ -150,5 +189,13 @@ public class Ranker {
 
     public void turnOffStem(){
         stem=false;
+    }
+
+    public Map<String, Double> getDocsBeforeSort() {
+        return docsBeforeSort;
+    }
+
+    public int getSemWordsSize() {
+        return semWordsSize;
     }
 }

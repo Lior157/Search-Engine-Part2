@@ -10,21 +10,29 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ *this class responsiable to Read Posting and semantics files into a memory
+ * In addition, can search a term in a posting files.
+ */
 public class InversedFileReader {
 
     private Path inversedFilesFolder;
     private Double[] InformationAboutCorpus ;
     private Map<Integer,Map<String,String>> DocID_toMetaData ;
     private Map<Integer , Map<String,Integer>> DocID_toEntity ;
-    private Map<String,Integer> DocID_toDocID;
+    private Map<String,Integer> DOCNO_toDocID;
 
     public InversedFileReader(Path inversedFilesFolder) {
         this.inversedFilesFolder = inversedFilesFolder;
-        DocID_toDocID=new HashMap<>();
+        DOCNO_toDocID=new HashMap<>();
         PREreadInformationAboutCorpus();
         PRE_DocToMetaData() ;
         PRE_DocToEntities();
     }
+
+    /**
+     * loads into memory the information about corpus that includes: number of documents , Total length of documents
+     */
     private void PREreadInformationAboutCorpus(){
         InformationAboutCorpus = new Double[2];
         try {
@@ -35,9 +43,20 @@ public class InversedFileReader {
             InformationAboutCorpus[1] = Double.parseDouble(splitedLinesInput[1]);
         }catch (Exception e){}
     }
+
+    /**
+     *
+     * @return [number of documents , Total length of documents]
+     */
     public Double[] readInformationAboutCorpus(){
         return InformationAboutCorpus ;
     }
+
+    /**
+     * searching for term in posting files
+     * @param term
+     * @return pairs of <<term , ft >,<map of list of pairs <doc number , number of appearence of the term in the doc>>
+     */
     public Pair<Pair<String,Integer>, Map<Integer,Integer>> readTermInformation(String term){
         if (term == null || term.length()<1) {
             return null;
@@ -87,6 +106,10 @@ public class InversedFileReader {
         }
         return null;
     }
+
+    /**
+     * read entities txt to Ram
+     */
     public void PRE_DocToEntities(){
         DocID_toEntity = new HashMap<>();
         String fileName = "DocToEntities.txt";
@@ -129,7 +152,7 @@ public class InversedFileReader {
         }
     }
     /**
-     *
+     *search entities that appear in Document
      * @param DocID
      * @return Map of pairs <Entity , numberOfAppearence>
      */
@@ -137,6 +160,9 @@ public class InversedFileReader {
         return DocID_toEntity.get(DocID);
     }
 
+    /**
+     * load documents meta data txt into memory
+     */
     private void PRE_DocToMetaData(){
         DocID_toMetaData = new HashMap<>();
         String fileName = "id_toDoc.txt";
@@ -157,7 +183,7 @@ public class InversedFileReader {
                     doc_amount_map.put("DocLen" ,termElements[8]);
                     Integer docId=Integer.parseInt(strCurrentLine.substring(0, strCurrentLine.indexOf("=")));
                     DocID_toMetaData.put(docId , doc_amount_map) ;
-                    DocID_toDocID.put(termElements[2],docId);
+                    DOCNO_toDocID.put(termElements[2],docId);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -171,53 +197,64 @@ public class InversedFileReader {
         }
 
     }
+
+    /**
+     * searching for meta data about certain DocId
+     * @param DocID
+     * @return meta data map about Document
+     */
     public  Map<String,String> DocToMetaData(Integer DocID){
         return DocID_toMetaData.get(DocID);
     }
 
+    /**
+     * adapt original DONCO to our DocID representation
+     * @param doc - DONCO STRING
+     * @return DocId
+     */
     public Integer DocIdFromDoc(String doc){
-        return DocID_toDocID.get(doc);
+        return DOCNO_toDocID.get(doc);
     }
 
-    public boolean searchIfExistTerm(String term){
-        if (term == null || term.length()<1) {
-            return false;
-        }
-        String fileName;
-        char firstTermLetter = term.charAt(0) ;
-        if(firstTermLetter >=65 && firstTermLetter<=90){
-            firstTermLetter = (char) (((int) firstTermLetter) + 22) ;
-            fileName = "@"+firstTermLetter+".txt";
-        }if(firstTermLetter >= 97 && firstTermLetter <= 122){
-            fileName = "@"+firstTermLetter+".txt";
-        }else{
-            fileName = "number&sign.txt";
-        }
-        BufferedReader objReader = null;
-        try {
-            String strCurrentLine;
-            Path path = Paths.get(inversedFilesFolder + "//"+fileName);
-            objReader = new BufferedReader(new FileReader(path.toString()));
-            while ((strCurrentLine = objReader.readLine()) != null) {
-                if(strCurrentLine.toLowerCase().startsWith(term.toLowerCase())){ // to lower case , Im nit sure about it. may be ereased later
-                    //    System.out.println(term.length());
-                    //      System.out.println(strCurrentLine.indexOf("="));
-                    if( term.length()-strCurrentLine.indexOf("=") == -1 ) {
-                        return true;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (objReader != null)
-                    objReader.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
-        return false;
-    }
+//    public boolean searchIfExistTerm(String term){
+//        if (term == null || term.length()<1) {
+//            return false;
+//        }
+//        String fileName;
+//        char firstTermLetter = term.charAt(0) ;
+//        if(firstTermLetter >=65 && firstTermLetter<=90){
+//            firstTermLetter = (char) (((int) firstTermLetter) + 22) ;
+//            fileName = "@"+firstTermLetter+".txt";
+//        }if(firstTermLetter >= 97 && firstTermLetter <= 122){
+//            fileName = "@"+firstTermLetter+".txt";
+//        }else{
+//            fileName = "number&sign.txt";
+//        }
+//        BufferedReader objReader = null;
+//        try {
+//            String strCurrentLine;
+//            Path path = Paths.get(inversedFilesFolder + "//"+fileName);
+//            objReader = new BufferedReader(new FileReader(path.toString()));
+//            while ((strCurrentLine = objReader.readLine()) != null) {
+//                if(strCurrentLine.toLowerCase().startsWith(term.toLowerCase())){ // to lower case , Im nit sure about it. may be ereased later
+//                    //    System.out.println(term.length());
+//                    //      System.out.println(strCurrentLine.indexOf("="));
+//                    if( term.length()-strCurrentLine.indexOf("=") == -1 ) {
+//                        return true;
+//                    }
+//                }
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } finally {
+//            try {
+//                if (objReader != null)
+//                    objReader.close();
+//            } catch (IOException ex) {
+//                ex.printStackTrace();
+//            }
+//        }
+//        return false;
+//    }
 }
 
