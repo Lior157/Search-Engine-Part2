@@ -128,8 +128,8 @@ public class Ranker {
                 rest=rest/2;
             sum=sum+rest*idf;
             sum=sum*query.get(term);
-            if(title.contains(term))
-                sum+=10;
+//            if(title.contains(term))
+//                sum+=10;
         }
         return sum;
     }
