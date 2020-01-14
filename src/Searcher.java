@@ -18,7 +18,7 @@ public class Searcher {
     boolean stem;
     Ranker ranker;
     int originalQuerySize;
-    public static Double minimum=0.0;
+
 
     public Searcher(Path posting,Path corpus) {
         this.posting = posting;
@@ -28,9 +28,6 @@ public class Searcher {
         stem=false;
     }
 
-    public static void setMinimum(Double min){
-        minimum=min;
-    }
 
     /**
      *
@@ -38,7 +35,7 @@ public class Searcher {
      * @return DONCO of relevant documents and theirs rank .
      * @throws IOException
      */
-    public ArrayList<Map.Entry<String, Double>> analyzeQuery(String Query,Double k,Double b) throws IOException {
+    public ArrayList<Map.Entry<String, Double>> analyzeQuery(String Query,Double k,Double b,Double delta) throws IOException {
         Parse p = new Parse(Corpus.toString());
         if(stem)
             p.TurnOnStem();
@@ -46,7 +43,7 @@ public class Searcher {
             p.TurnOffStem();
         Map<String, Integer>  queryWords = p.parseIt(Query);
         originalQuerySize=queryWords.size();
-        ranker=new Ranker(queryWords,Corpus.toString(),reader,k,b);
+        ranker=new Ranker(queryWords,Corpus.toString(),reader,k,b,delta);
         if(stem)
             ranker.turnOnStem();
         else
@@ -119,17 +116,4 @@ public class Searcher {
         stem=false;
     }
 
-    public Map<String,Double> getDocsBeforeSort(){
-        Map<String,Double> temp=ranker.getDocsBeforeSort();
-        Map<String,Double> ans=new HashMap<>();
-        Double multi=0.0;
-        if(semantics)
-            multi=(ranker.getSemWordsSize()-originalQuerySize)*minimum/2;
-        multi=multi+originalQuerySize*minimum;
-        for(Map.Entry<String,Double> e:temp.entrySet()){
-            if(e.getValue()>multi)
-                ans.put(e.getKey(),e.getValue());
-        }
-        return ans;
-    }
 }

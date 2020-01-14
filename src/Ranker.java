@@ -1,8 +1,6 @@
 import javafx.util.Pair;
 
 import java.io.*;
-import java.lang.reflect.Array;
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -18,13 +16,13 @@ public class Ranker {
     Map<String,Pair<Pair<String,Integer>, Map<Integer,Integer>>> queryInfo;
     Map<String,Integer> semanticWords;
     Double[] corpusData;
-    Map<String,Double> docsBeforeSort;
     Double k;
     Double b;
+    Double delta;
     int semWordsSize;
 
 
-    public Ranker(Map<String,Integer> query,String corpus,InversedFileReader reader,Double k,Double b) {
+    public Ranker(Map<String,Integer> query,String corpus,InversedFileReader reader,Double k,Double b1,Double delta) {
         this.query=query;
         semantics=false;
         this.corpus=corpus;
@@ -32,9 +30,9 @@ public class Ranker {
         this.reader=reader;
         semanticWords=new HashMap<>();
         stem=false;
-        docsBeforeSort=new HashMap<>();
         this.k=k;
-        this.b=b;
+        this.b=b1;
+        this.delta=delta;
         semWordsSize=0;
     }
 
@@ -49,7 +47,6 @@ public class Ranker {
         if(semantics)
             addSemanticWordsToQuery();
         Map<String,Double> bm=PreBM25();
-        docsBeforeSort=bm;
         ArrayList<Map.Entry<String,Double>> sorted=new ArrayList<>();
         for(Map.Entry<String,Double> e:bm.entrySet()){
             sorted.add(e);
@@ -111,25 +108,25 @@ public class Ranker {
      * @return The rank of the document
      */
     private Double calculateBM(Integer docno,Double docLen,String title){
-        Double idf=0.0;
-        Double rest=0.0;
-        Double sum=0.0;
-        Double avgDocLen=corpusData[1]/corpusData[0];
+        double idf,rest;
+        double sum=0.0;
+        double avgDocLen=corpusData[1]/corpusData[0];
         for(String term:query.keySet()){
             Pair<Pair<String,Integer>, Map<Integer,Integer>> p = queryInfo.get(term);
             if(p==null)
                 continue;
-            if(p.getValue().get(docno)==null)
+            idf=Math.log10((corpusData[0]+1)/p.getKey().getValue());
+            if(p.getValue().get(docno)==null) {
                 continue;
-            Double docAmount=p.getValue().get(docno).doubleValue();
-            idf=Math.log((corpusData[0]-p.getKey().getValue()+0.5)/(p.getKey().getValue()+0.5));
+            }
+            double docAmount=p.getValue().get(docno).doubleValue();
+
             rest=(docAmount*(k+1))/(docAmount+k*(1-b+b*docLen/avgDocLen));
+            rest=rest*query.get(term)+delta;
+            rest=rest*idf;
             if(semanticWords.get(term)!=null)
                 rest=rest/2;
-            sum=sum+rest*idf;
-            sum=sum*query.get(term);
-//            if(title.contains(term))
-//                sum+=10;
+            sum=sum+rest;
         }
         return sum;
     }
@@ -191,9 +188,6 @@ public class Ranker {
         stem=false;
     }
 
-    public Map<String, Double> getDocsBeforeSort() {
-        return docsBeforeSort;
-    }
 
     public int getSemWordsSize() {
         return semWordsSize;
